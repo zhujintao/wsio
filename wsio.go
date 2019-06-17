@@ -13,8 +13,10 @@ const (
 )
 
 type Events struct {
-	Sender sender
-	Ctx    chan *interface{}
+	NumLoops int
+	Unpack   func(in []byte) (ctx interface{}, clientFlag string, action Action)
+	Sender   sender
+	Ctx      chan *interface{}
 }
 type sender struct {
 	ToChan  chan *string
@@ -24,4 +26,9 @@ type sender struct {
 func Server(events Events, addr, path string) error {
 
 	return serve(events, addr, path)
+}
+func (e *Events) Send(to string, msg []byte) {
+
+	e.Sender.ToChan <- &to
+	e.Sender.MsgChan <- &msg
 }
