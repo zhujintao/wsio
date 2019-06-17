@@ -1,8 +1,6 @@
 package wsio
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/websocket"
 )
@@ -44,13 +42,10 @@ func (s *server) ginHandler(c *gin.Context) {
 			}
 
 			if s.events.Unpack != nil {
-
 				ctx, flag, _ := s.events.Unpack(in)
-				fmt.Println(ctx, flag)
 				if flag != "" {
 					s.clients[flag] = conn
 				}
-
 				s.events.Ctx <- &ctx
 
 			}
@@ -64,7 +59,7 @@ func (s *server) ginHandler(c *gin.Context) {
 func loopSendConn(s *server) {
 
 	for {
-		fmt.Println("loopSendConn")
+
 		flag := <-s.events.Sender.ToChan
 		msg := <-s.events.Sender.MsgChan
 
@@ -76,6 +71,7 @@ func loopSendConn(s *server) {
 		} else {
 
 			if c, ok := s.clients[*flag]; ok {
+
 				c.Write(*msg)
 
 			}
