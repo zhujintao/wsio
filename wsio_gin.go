@@ -46,8 +46,9 @@ func (s *server) ginHandler(c *gin.Context) {
 				if flag != "" {
 					s.clients[flag] = conn
 				}
-				s.events.Ctx <- &ctx
-
+				if ctx != nil {
+					s.events.Ctx <- &ctx
+				}
 			}
 
 		}
