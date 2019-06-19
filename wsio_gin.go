@@ -35,8 +35,10 @@ func (s *server) ginHandler(c *gin.Context) {
 	h := websocket.Handler(func(conn *websocket.Conn) {
 
 		for {
-			var in = make([]byte, 512)
-			_, err := conn.Read(in)
+			var in = make([]byte, 0xFFFF)
+
+			n, err := conn.Read(in)
+			in = append([]byte{}, in[:n]...)
 			if err != nil {
 				return
 			}
