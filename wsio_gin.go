@@ -15,7 +15,7 @@ type conn struct {
 	flidx string
 }
 
-func serve(events Events, addr, path string) error {
+func serve(events Events, addr, path string, sslCert ...string) error {
 
 	s := &server{}
 	s.events = events
@@ -28,9 +28,14 @@ func serve(events Events, addr, path string) error {
 	for i := 0; i < events.NumLoops; i++ {
 		go loopSendConn(s)
 	}
-	return s.gin.Run(addr)
+	if len(sslCert) == 2 {
+		return s.gin.RunTLS(addr, sslCert[0], sslCert[1])
+	} else {
+		return s.gin.Run(addr)
+	}
 
 }
+
 func (s *server) ginHandler(c *gin.Context) {
 	h := websocket.Handler(func(conn *websocket.Conn) {
 

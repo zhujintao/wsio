@@ -23,9 +23,9 @@ type sender struct {
 	MsgChan chan *[]byte
 }
 
-func Server(events Events, addr, path string) error {
+func Server(events Events, addr, path string, sslCert ...string) error {
 
-	return serve(events, addr, path)
+	return serve(events, addr, path, sslCert...)
 }
 func (e *Events) Send(to string, msg []byte) {
 
