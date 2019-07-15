@@ -1,6 +1,8 @@
 package wsio
 
 import (
+	"sync"
+
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/websocket"
 )
@@ -10,6 +12,7 @@ type server struct {
 	gin     *gin.Engine
 	gconn   *conn
 	clients map[string]*websocket.Conn
+	wx      *sync.RWMutex
 }
 type conn struct {
 	flidx string
@@ -20,6 +23,7 @@ func serve(events Events, addr, path string, sslCert ...string) error {
 	s := &server{}
 	s.events = events
 	s.clients = make(map[string]*websocket.Conn)
+	s.wx = &sync.RWMutex{}
 	s.gin = gin.Default()
 	s.gin.GET(path, s.ginHandler)
 	if events.NumLoops == 0 {
@@ -51,7 +55,9 @@ func (s *server) ginHandler(c *gin.Context) {
 			if s.events.Unpack != nil {
 				ctx, flag, _ := s.events.Unpack(in)
 				if flag != "" {
+					s.wx.Lock()
 					s.clients[flag] = conn
+					s.wx.Unlock()
 				}
 				if ctx != nil {
 					s.events.Ctx <- &ctx
@@ -78,7 +84,11 @@ func loopSendConn(s *server) {
 
 		} else {
 
-			if c, ok := s.clients[*flag]; ok {
+			s.wx.RLock()
+			c, ok := s.clients[*flag]
+			s.wx.RUnlock()
+
+			if ok {
 
 				c.Write(*msg)
 
