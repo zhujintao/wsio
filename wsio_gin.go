@@ -83,14 +83,12 @@ func (s *server) ginHandler(c *gin.Context) {
 	h.ServeHTTP(c.Writer, c.Request)
 }
 func (s *server) loopCloseConn(conn *websocket.Conn) {
-	fmt.Println(s.clients)
 	s.wx.RLock()
 	flidx := s.flidxs[conn]
 	s.wx.RUnlock()
 	s.wx.Lock()
 	delete(s.clients, flidx)
 	s.wx.Unlock()
-	fmt.Println(s.clients)
 	conn.Close()
 }
 func loopSendConn(s *server) {
