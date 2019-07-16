@@ -47,26 +47,23 @@ func serve(events Events, addr, path string, sslCert ...string) error {
 func (s *server) ginHandler(c *gin.Context) {
 
 	h := websocket.Handler(func(conn *websocket.Conn) {
-
+		defer s.loopCloseConn(conn)
 		for {
+
 			var in = make([]byte, 0xFFFF)
 
 			n, err := conn.Read(in)
 			in = append([]byte{}, in[:n]...)
 			if err != nil {
-				s.wx.RLock()
-				flidx := s.flidxs[conn]
-				s.wx.RUnlock()
-				s.wx.Lock()
-				delete(s.clients, flidx)
-				s.wx.Unlock()
 
 				return
 			}
 
 			if s.events.Unpack != nil {
-				ctx, flag, _ := s.events.Unpack(in)
-
+				ctx, flag, action := s.events.Unpack(in)
+				if action == Close {
+					conn.Close()
+				}
 				if flag != "" {
 					s.wx.Lock()
 					s.clients[flag] = conn
@@ -85,7 +82,17 @@ func (s *server) ginHandler(c *gin.Context) {
 
 	h.ServeHTTP(c.Writer, c.Request)
 }
-
+func (s *server) loopCloseConn(conn *websocket.Conn) {
+	fmt.Println(s.clients)
+	s.wx.RLock()
+	flidx := s.flidxs[conn]
+	s.wx.RUnlock()
+	s.wx.Lock()
+	delete(s.clients, flidx)
+	s.wx.Unlock()
+	fmt.Println(s.clients)
+	conn.Close()
+}
 func loopSendConn(s *server) {
 
 	for {
