@@ -1,6 +1,7 @@
 package wsio
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ type server struct {
 	gin     *gin.Engine
 	gconn   *conn
 	clients map[string]*websocket.Conn
+	flidxs  map[*websocket.Conn]string
 	wx      *sync.RWMutex
 }
 type conn struct {
@@ -23,8 +25,10 @@ func serve(events Events, addr, path string, sslCert ...string) error {
 	s := &server{}
 	s.events = events
 	s.clients = make(map[string]*websocket.Conn)
+	s.flidxs = make(map[*websocket.Conn]string)
 	s.wx = &sync.RWMutex{}
 	s.gin = gin.Default()
+
 	s.gin.GET(path, s.ginHandler)
 	if events.NumLoops == 0 {
 		go loopSendConn(s)
@@ -41,6 +45,7 @@ func serve(events Events, addr, path string, sslCert ...string) error {
 }
 
 func (s *server) ginHandler(c *gin.Context) {
+
 	h := websocket.Handler(func(conn *websocket.Conn) {
 
 		for {
@@ -49,24 +54,35 @@ func (s *server) ginHandler(c *gin.Context) {
 			n, err := conn.Read(in)
 			in = append([]byte{}, in[:n]...)
 			if err != nil {
+				s.wx.RLock()
+				flidx := s.flidxs[conn]
+				s.wx.RUnlock()
+				s.wx.Lock()
+				delete(s.clients, flidx)
+				s.wx.Unlock()
+
 				return
 			}
 
 			if s.events.Unpack != nil {
 				ctx, flag, _ := s.events.Unpack(in)
+
 				if flag != "" {
 					s.wx.Lock()
 					s.clients[flag] = conn
+					s.flidxs[conn] = flag
 					s.wx.Unlock()
 				}
 				if ctx != nil {
 					s.events.Ctx <- &ctx
 				}
+				fmt.Println("[wsio] s.clients MAP length Total: ", len(s.clients))
 			}
 
 		}
 
 	})
+
 	h.ServeHTTP(c.Writer, c.Request)
 }
 
